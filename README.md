@@ -185,7 +185,7 @@ lib/
 
 ## 📧 Kontak & Support
 
-Email: support@bmikalkulator.com
+Email: tyobro0@gmail.com
 
 ## 📄 Lisensi
 
