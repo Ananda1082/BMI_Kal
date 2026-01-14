@@ -82,10 +82,18 @@ class _GoalPageState extends State<GoalPage> {
 
   // Load goals dari database
   Future<void> _loadGoals() async {
-    final data = await DatabaseHelper.instance.getAllGoals();
-    setState(() {
-      goals = data.map((item) => Goal.fromMap(item)).toList();
-    });
+    try {
+      final data = await DatabaseHelper.instance.getAllGoals();
+      setState(() {
+        goals = data.map((item) => Goal.fromMap(item)).toList();
+      });
+    } catch (e) {
+      print('Error loading goals: $e');
+      // Jika terjadi error, set goals kosong
+      setState(() {
+        goals = [];
+      });
+    }
   }
 
   void _pilihTanggal() async {

@@ -1,11 +1,19 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:io' show Platform;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
-  DatabaseHelper._init();
+  DatabaseHelper._init() {
+    // Initialize database factory for desktop platforms
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -14,14 +22,25 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, filePath);
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
-    );
+      return await openDatabase(
+        path,
+        version: 2, // Increment version untuk migration
+        onCreate: _createDB,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          // Handle database upgrade untuk menambahkan kolom unitSystem
+          if (oldVersion < 2) {
+            await db.execute('ALTER TABLE bmi_history ADD COLUMN unitSystem TEXT DEFAULT "Metric"');
+          }
+        },
+      );
+    } catch (e) {
+      print('Error initializing database: $e');
+      rethrow;
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -39,7 +58,8 @@ CREATE TABLE bmi_history (
   bmi $realType,
   kategori $textType,
   jenisKelamin $textType,
-  waktu $integerType
+  waktu $integerType,
+  unitSystem TEXT DEFAULT 'Metric'
 )
 ''');
 

@@ -1,0 +1,14 @@
+// Konfigurasi untuk mengatasi masalah NDK debug symbols saat build AAB
+android.buildTypes.all { buildType ->
+    buildType.ndk.debugSymbolLevel = 'NONE'
+}
+
+// Disable extracting native debug symbols completely
+afterEvaluate {
+    tasks.whenTaskAdded { task ->
+        if (task.name.contains("extractReleaseNativeSymbolTables") || 
+            task.name.contains("extractNativeDebugMetadata")) {
+            task.enabled = false
+        }
+    }
+}

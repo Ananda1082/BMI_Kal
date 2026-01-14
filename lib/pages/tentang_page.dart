@@ -25,10 +25,17 @@ class TentangPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: Icon(
-                      Icons.fitness_center,
-                      size: isDesktop ? 120 : 100,
-                      color: Colors.blue,
+                    child: Image.asset(
+                      'web/icons/Icon-192.png',
+                      width: isDesktop ? 120 : 100,
+                      height: isDesktop ? 120 : 100,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.fitness_center,
+                          size: isDesktop ? 120 : 100,
+                          color: Colors.blue,
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -110,7 +117,7 @@ class TentangPage extends StatelessWidget {
                       SizedBox(width: isDesktop ? 12 : 10),
                       Expanded(
                         child: Text(
-                          "support@bmikalkulator.com",
+                          "tyobro40@gmail.com",
                           style: TextStyle(
                             fontSize: isDesktop ? 16 : 15,
                             color: Colors.blue,
@@ -124,35 +131,16 @@ class TentangPage extends StatelessWidget {
                   const Divider(),
                   const SizedBox(height: 20),
                   Center(
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 20,
-                      runSpacing: 10,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const KebijakanPrivasiPage(),
-                              ),
-                            );
-                          },
-                          child: const Text("Kebijakan & Privasi"),
-                        ),
-                        Text("•", style: TextStyle(color: Colors.grey[400])),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HakCiptaPage(),
-                              ),
-                            );
-                          },
-                          child: const Text("Hak Cipta"),
-                        ),
-                      ],
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const KebijakanPrivasiPage(),
+                          ),
+                        );
+                      },
+                      child: const Text("Kebijakan & Privasi"),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -414,7 +402,7 @@ class HakCiptaPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "support@bmikalkulator.com",
+                          "tyobro40@gmail.com",
                           style: TextStyle(
                             fontSize: isDesktop ? 16 : 15,
                             fontWeight: FontWeight.bold,

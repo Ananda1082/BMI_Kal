@@ -12,6 +12,7 @@ class BmiHistory {
   final String kategori;
   final String jenisKelamin;
   final DateTime waktu;
+  final String unitSystem; // "Metric" or "US"
 
   BmiHistory({
     required this.id,
@@ -21,6 +22,7 @@ class BmiHistory {
     required this.kategori,
     required this.jenisKelamin,
     required this.waktu,
+    this.unitSystem = "Metric", // Default Metric untuk backward compatibility
   });
 
   // Convert ke Map untuk database
@@ -33,6 +35,7 @@ class BmiHistory {
       'kategori': kategori,
       'jenisKelamin': jenisKelamin,
       'waktu': waktu.millisecondsSinceEpoch,
+      'unitSystem': unitSystem,
     };
   }
 
@@ -46,6 +49,7 @@ class BmiHistory {
       kategori: map['kategori'],
       jenisKelamin: map['jenisKelamin'],
       waktu: DateTime.fromMillisecondsSinceEpoch(map['waktu']),
+      unitSystem: map['unitSystem'] ?? "Metric", // Default Metric jika tidak ada
     );
   }
 }
@@ -60,10 +64,13 @@ class BmiPage extends StatefulWidget {
 class _BmiPageState extends State<BmiPage> {
   final TextEditingController beratController = TextEditingController();
   final TextEditingController tinggiController = TextEditingController();
+  final TextEditingController feetController = TextEditingController();
+  final TextEditingController inchesController = TextEditingController();
 
   double bmi = 0;
   String kategori = "";
   String jenisKelamin = "Laki-laki"; // Default jenis kelamin
+  String unitSystem = "Metric"; // Default unit system: "Metric" or "US"
   List<BmiHistory> history = [];
 
   @override
@@ -74,15 +81,39 @@ class _BmiPageState extends State<BmiPage> {
 
   // Load history dari database
   Future<void> _loadHistory() async {
-    final data = await DatabaseHelper.instance.getAllBmiHistory();
-    setState(() {
-      history = data.map((item) => BmiHistory.fromMap(item)).toList();
-    });
+    try {
+      final data = await DatabaseHelper.instance.getAllBmiHistory();
+      setState(() {
+        history = data.map((item) => BmiHistory.fromMap(item)).toList();
+      });
+    } catch (e) {
+      print('Error loading history: $e');
+      // Jika terjadi error, set history kosong
+      setState(() {
+        history = [];
+      });
+    }
   }
 
   void hitungBMI() {
     double berat = double.parse(beratController.text);
-    double tinggi = double.parse(tinggiController.text) / 100;
+    double tinggi;
+
+    // Konversi ke metric jika menggunakan US unit
+    if (unitSystem == "US") {
+      // Convert pounds to kg: 1 lb = 0.453592 kg
+      berat = berat * 0.453592;
+      // Convert feet and inches to meters
+      double feet = double.parse(feetController.text);
+      double inches = double.parse(inchesController.text);
+      // Total inches = (feet * 12) + inches
+      double totalInches = (feet * 12) + inches;
+      // Convert total inches to meters: 1 inch = 0.0254 m
+      tinggi = totalInches * 0.0254;
+    } else {
+      // Metric: convert cm to meters
+      tinggi = double.parse(tinggiController.text) / 100;
+    }
 
     setState(() {
       bmi = berat / (tinggi * tinggi);
@@ -111,21 +142,39 @@ class _BmiPageState extends State<BmiPage> {
         }
       }
 
-      // Tambahkan ke history
+      // Tambahkan ke history (simpan dalam satuan yang diinput)
+      double beratDisplay = double.parse(beratController.text);
+      double tinggiDisplay;
+      
+      if (unitSystem == "US") {
+        // Untuk US, simpan total inches
+        double feet = double.parse(feetController.text);
+        double inches = double.parse(inchesController.text);
+        tinggiDisplay = (feet * 12) + inches; // total inches
+      } else {
+        tinggiDisplay = double.parse(tinggiController.text);
+      }
+      
       final newHistory = BmiHistory(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        berat: berat,
-        tinggi: tinggi * 100,
+        berat: beratDisplay,
+        tinggi: tinggiDisplay,
         bmi: bmi,
         kategori: kategori,
         jenisKelamin: jenisKelamin,
         waktu: DateTime.now(),
+        unitSystem: unitSystem,
       );
       
-      // Simpan ke database
-      DatabaseHelper.instance.insertBmiHistory(newHistory.toMap());
-      
-      history.insert(0, newHistory);
+      // Simpan ke database dengan error handling
+      try {
+        DatabaseHelper.instance.insertBmiHistory(newHistory.toMap());
+        history.insert(0, newHistory);
+      } catch (e) {
+        print('Error saving to database: $e');
+        // Tetap tampilkan di UI meskipun gagal disimpan
+        history.insert(0, newHistory);
+      }
     });
   }
 
@@ -242,6 +291,8 @@ class _BmiPageState extends State<BmiPage> {
   Widget _buildMobileLayout() {
     return Column(
       children: [
+        _buildUnitSelector(),
+        const SizedBox(height: 20),
         _buildGenderSelector(),
         const SizedBox(height: 20),
         _buildInputFields(),
@@ -270,6 +321,8 @@ class _BmiPageState extends State<BmiPage> {
               flex: 1,
               child: Column(
                 children: [
+                  _buildUnitSelector(),
+                  const SizedBox(height: 20),
                   _buildGenderSelector(),
                   const SizedBox(height: 20),
                   _buildInputFields(),
@@ -296,6 +349,50 @@ class _BmiPageState extends State<BmiPage> {
           const SizedBox(height: 40),
           _buildHistorySection(),
         ],
+      ],
+    );
+  }
+
+  Widget _buildUnitSelector() {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      children: [
+        const Text(
+          "Unit: ",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        ChoiceChip(
+          label: const Text("Metric (kg/cm)"),
+          selected: unitSystem == "Metric",
+          onSelected: (selected) {
+            setState(() {
+              unitSystem = "Metric";
+              // Clear inputs when switching units
+              beratController.clear();
+              tinggiController.clear();
+              feetController.clear();
+              inchesController.clear();
+            });
+          },
+          selectedColor: Colors.teal,
+        ),
+        ChoiceChip(
+          label: const Text("US (lbs/in)"),
+          selected: unitSystem == "US",
+          onSelected: (selected) {
+            setState(() {
+              unitSystem = "US";
+              // Clear inputs when switching units
+              beratController.clear();
+              tinggiController.clear();
+              feetController.clear();
+              inchesController.clear();
+            });
+          },
+          selectedColor: Colors.deepOrange,
+        ),
       ],
     );
   }
@@ -335,27 +432,60 @@ class _BmiPageState extends State<BmiPage> {
   }
 
   Widget _buildInputFields() {
+    final beratLabel = unitSystem == "Metric" ? "Berat Badan (kg)" : "Weight (lbs)";
+    
     return Column(
       children: [
         TextField(
           controller: beratController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: "Berat Badan (kg)",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.monitor_weight),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: beratLabel,
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.monitor_weight),
           ),
         ),
         const SizedBox(height: 15),
-        TextField(
-          controller: tinggiController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: "Tinggi Badan (cm)",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.height),
+        if (unitSystem == "Metric")
+          TextField(
+            controller: tinggiController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: "Tinggi Badan (cm)",
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.height),
+            ),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: feetController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: "Feet",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.height),
+                    suffixText: "ft",
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: inchesController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: "Inches",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.straighten),
+                    suffixText: "in",
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
       ],
     );
   }
@@ -547,9 +677,21 @@ class _BmiPageState extends State<BmiPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildHistoryInfo("Berat", "${item.berat.toStringAsFixed(1)} kg", isDesktop),
+                    _buildHistoryInfo(
+                      "Berat", 
+                      item.unitSystem == "Metric" 
+                        ? "${item.berat.toStringAsFixed(1)} kg" 
+                        : "${item.berat.toStringAsFixed(1)} lbs",
+                      isDesktop
+                    ),
                     const SizedBox(width: 20),
-                    _buildHistoryInfo("Tinggi", "${item.tinggi.toStringAsFixed(0)} cm", isDesktop),
+                    _buildHistoryInfo(
+                      "Tinggi", 
+                      item.unitSystem == "Metric" 
+                        ? "${item.tinggi.toStringAsFixed(0)} cm" 
+                        : "${(item.tinggi / 12).floor()}' ${(item.tinggi % 12).toStringAsFixed(0)}\"",
+                      isDesktop
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
