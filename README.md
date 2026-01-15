@@ -1,7 +1,7 @@
 **Projek ini digunakan untuk memenuhi Tugas UAS Mata Kuliah Pemrograman Bergerak**
 
-**NAMA: ANANDA MUHAMAD PRASETYO**
-**NIM : 2205101082**
+**NAMA: ANANDA MUHAMAD PRASETYO**/n
+**NIM : 2205101082**/n
 **KELAS : 7D**
 
 # BMI Kalkulator 📊
